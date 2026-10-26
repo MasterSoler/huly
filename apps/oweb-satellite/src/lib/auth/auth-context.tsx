@@ -10,8 +10,7 @@ import {
 } from 'react'
 
 import { supabase } from '@/integrations/supabase/client'
-import { activateHulyApp } from '@/lib/huly/app-activation'
-import { ensureHulyProfile } from '@/lib/huly/ensure-profile'
+import { schedulePostAuthSideEffects } from '@/lib/auth/post-auth'
 import { oneIdFromUserMetadata } from '@/lib/oneid'
 import { persistWorkspaceId, readStoredWorkspaceId } from '@/lib/workspace/workspace-storage'
 
@@ -39,20 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return
       setSession(data.session)
       setWorkspaceIdState(readStoredWorkspaceId())
-      if (data.session?.user) {
-        void activateHulyApp(data.session.user.id)
-        void ensureHulyProfile(data.session.user)
-      }
+      if (data.session?.user) schedulePostAuthSideEffects(data.session.user)
       setLoading(false)
     })
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
       setWorkspaceIdState(readStoredWorkspaceId())
-      if (next?.user) {
-        void activateHulyApp(next.user.id)
-        void ensureHulyProfile(next.user)
-      }
+      if (next?.user) schedulePostAuthSideEffects(next.user)
       setLoading(false)
     })
 

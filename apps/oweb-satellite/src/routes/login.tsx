@@ -4,11 +4,8 @@ import { Boxes } from 'lucide-react'
 
 import { ContinueWithOWebButton } from '@/components/continue-with-oweb'
 import { supabase } from '@/integrations/supabase/client'
-import { useAuth } from '@/lib/auth/auth-context'
-import { ensureHulyProfile } from '@/lib/huly/ensure-profile'
-import { owebOnboardingUrl } from '@/lib/huly/constants'
-import { fetchMyWorkspaces } from '@/lib/workspace/workspace-queries'
-import { persistWorkspaceId, readStoredWorkspaceId } from '@/lib/workspace/workspace-storage'
+import { schedulePostAuthSideEffects } from '@/lib/auth/post-auth'
+import { withTimeout } from '@/lib/auth/with-timeout'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {
@@ -18,20 +15,7 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
-async function ensureWorkspaceAfterLogin(userId: string): Promise<string | null> {
-  const existing = readStoredWorkspaceId()
-  if (existing) return existing
-  const workspaces = await fetchMyWorkspaces(userId)
-  if (workspaces.length > 0) {
-    const id = workspaces[0]!.id
-    persistWorkspaceId(id)
-    return id
-  }
-  return null
-}
-
 function LoginPage() {
-  const auth = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -72,32 +56,22 @@ function LoginPage() {
         })
         if (signUpError) throw signUpError
         if (data.session?.user) {
-          await ensureHulyProfile(data.session.user)
-          const workspaceId = await ensureWorkspaceAfterLogin(data.session.user.id)
-          if (!workspaceId) {
-            window.location.assign(owebOnboardingUrl())
-            return
-          }
-          auth.setWorkspaceId(workspaceId)
+          schedulePostAuthSideEffects(data.session.user)
           window.location.assign('/dashboard')
           return
         }
         setMessage('Check your email to confirm your account.')
       } else {
-        const { data, error: signInError } = await supabase.auth.signInWithPassword({
-          email: trimmed,
-          password,
-        })
+        const { data, error: signInError } = await withTimeout(
+          supabase.auth.signInWithPassword({
+            email: trimmed,
+            password,
+          }),
+          45_000,
+          'Sign-in timed out. Try again or use Continue with OWeb.',
+        )
         if (signInError) throw signInError
-        if (data.session?.user) {
-          await ensureHulyProfile(data.session.user)
-          const workspaceId = await ensureWorkspaceAfterLogin(data.session.user.id)
-          if (!workspaceId) {
-            window.location.assign(owebOnboardingUrl())
-            return
-          }
-          auth.setWorkspaceId(workspaceId)
-        }
+        if (data.session?.user) schedulePostAuthSideEffects(data.session.user)
         window.location.assign('/dashboard')
       }
     } catch (err) {

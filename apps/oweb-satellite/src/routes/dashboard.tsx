@@ -1,9 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 
 import { AppShell } from '@/components/AppShell'
+import { resolveWorkspaceIdForUser } from '@/lib/auth/post-auth'
 import { useAuth } from '@/lib/auth/auth-context'
 import { requireAuthSession } from '@/lib/auth/route-guards'
-import { getHulyUpstreamUrl, getOwebAppUrl, HULY_APP_ID } from '@/lib/huly/constants'
+import { getHulyUpstreamUrl, owebOnboardingUrl, getOwebAppUrl, HULY_APP_ID } from '@/lib/huly/constants'
 
 export const Route = createFileRoute('/dashboard')({
   beforeLoad: () => requireAuthSession(),
@@ -11,11 +13,30 @@ export const Route = createFileRoute('/dashboard')({
 })
 
 function DashboardPage() {
-  const { user, oneId, loading } = useAuth()
+  const { user, oneId, loading, setWorkspaceId } = useAuth()
   const upstream = getHulyUpstreamUrl()
   const owebUrl = getOwebAppUrl()
+  const [workspaceReady, setWorkspaceReady] = useState(false)
 
-  if (loading) {
+  useEffect(() => {
+    if (loading || !user) return
+    let cancelled = false
+    void (async () => {
+      const workspaceId = await resolveWorkspaceIdForUser(user.id)
+      if (cancelled) return
+      if (!workspaceId) {
+        window.location.assign(owebOnboardingUrl())
+        return
+      }
+      setWorkspaceId(workspaceId)
+      setWorkspaceReady(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loading, user, setWorkspaceId])
+
+  if (loading || !workspaceReady) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-base)] text-sm text-[var(--sea-ink-soft)]">
         Loading session…
