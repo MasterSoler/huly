@@ -34,6 +34,8 @@ Dev server: `http://localhost:3000`
 
 Copy Supabase and OWeb URL variables from the `oweb` or `cube-oweb` Vercel projects. Set `VITE_HULY_PUBLIC_URL` to the deployment URL and `VITE_HULY_UPSTREAM_URL` to your self-hosted Huly front when ready.
 
+Until TanStack packages are upgraded in lockstep, set `DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS=1` on the Vercel project (same as the pinned `cube` satellite lockfile).
+
 ## Backend note
 
 The Rush monorepo under the repository root is the full Huly platform (Docker pods, CockroachDB, etc.) and does not run on Vercel. This satellite is the customer-facing OneID shell; point `VITE_HULY_UPSTREAM_URL` at your `front` pod or other hosted UI.
