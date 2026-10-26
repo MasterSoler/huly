@@ -3,8 +3,7 @@ import { useEffect, useState } from 'react'
 
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/lib/auth/auth-context'
-import { activateHulyApp } from '@/lib/huly/app-activation'
-import { ensureHulyProfile } from '@/lib/huly/ensure-profile'
+import { schedulePostAuthSideEffects } from '@/lib/auth/post-auth'
 import { redeemSsoLaunchToken } from '@/lib/sso/sso.functions'
 import { persistWorkspaceId } from '@/lib/workspace/workspace-storage'
 
@@ -43,10 +42,7 @@ function SsoPage() {
         auth.setWorkspaceId(result.orgId)
 
         const { data: userData } = await supabase.auth.getUser()
-        if (userData.user) {
-          await activateHulyApp(userData.user.id)
-          await ensureHulyProfile(userData.user)
-        }
+        if (userData.user) schedulePostAuthSideEffects(userData.user)
 
         window.location.assign('/dashboard')
       } catch (e) {
