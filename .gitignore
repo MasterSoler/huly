@@ -1,5 +1,7 @@
 .heft/
 lib/
+!apps/oweb-satellite/src/lib/
+!apps/oweb-satellite/src/lib/**
 _api-extractor-temp/
 temp/
 .idea
